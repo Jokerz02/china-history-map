@@ -36,8 +36,13 @@
         <h2 id="dynasty-name">Western Zhou</h2>
         <p id="dynasty-years">c. 1046 – 771 BCE</p>
         <p id="dynasty-desc">The Western Zhou period, capital at Haojing (near modern Xi'an). Feudal system with enfeoffed states.</p>
-        <p class="note"><strong>Note:</strong> Borders shown are schematic approximations for educational purposes, not precise historical boundaries.</p>
+        <p class="note"><strong>Note:</strong> Borders shown are schematic approximations. Drop in your own GeoJSON for higher accuracy.</p>
       </div>
+    </div>
+    <div id="data-loader">
+      <label>Load custom GeoJSON: <input type="file" id="geojson-file" accept=".geojson,.json"></label>
+      <button id="clear-geojson" type="button">Use built-in data</button>
+      <span id="load-status"></span>
     </div>
     <div id="legend">
       <div class="legend-item"><span class="swatch gold"></span> Main Chinese empire / dynasty</div>
