@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Historical Map of China</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>China Through the Ages</h1>
+      <p>Interactive map of Chinese dynasties from the start of written history</p>
+    </header>
+
+    <div id="map"></div>
+
+    <div id="controls">
+      <div id="timeline-container">
+        <label for="timeline">Year: <span id="year-display">-1046</span></label>
+        <input type="range" id="timeline" min="-1600" max="1912" value="-1046" step="1">
+        <div id="dynasty-labels">
+          <span>Shang</span>
+          <span>Zhou</span>
+          <span>Qin</span>
+          <span>Han</span>
+          <span>Tang</span>
+          <span>Song</span>
+          <span>Yuan</span>
+          <span>Ming</span>
+          <span>Qing</span>
+        </div>
+      </div>
+      <div id="info-panel">
+        <h2 id="dynasty-name">Western Zhou</h2>
+        <p id="dynasty-years">c. 1046 – 771 BCE</p>
+        <p id="dynasty-desc">The Western Zhou period, capital at Haojing (near modern Xi'an). Feudal system with enfeoffed states.</p>
+        <p class="note"><strong>Note:</strong> Borders shown are schematic approximations for educational purposes, not precise historical boundaries.</p>
+      </div>
+    </div>
+    <div id="legend">
+      <div class="legend-item"><span class="swatch gold"></span> Main Chinese empire / dynasty</div>
+      <div class="legend-item"><span class="swatch blue"></span> Other Chinese states &amp; clans</div>
+      <div class="legend-item"><span class="swatch red"></span> Surrounding nations (Mongolia, Japan, Tibet, etc.)</div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
