@@ -1,162 +1,208 @@
-const map = L.map('map', {
-  center: [35, 105],
+// Historical Atlas — high-performance interactive map platform
+// Built for extensibility: conquests, routes, shipping lanes, multi-region focus
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    sources: {},
+    layers: [{
+      id: 'background',
+      type: 'background',
+      paint: { 'background-color': '#0d1117' }
+    }]
+  },
+  center: [105, 35],
   zoom: 4,
-  minZoom: 3,
-  maxZoom: 10
+  minZoom: 2,
+  maxZoom: 12
 });
 
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-  attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-  maxZoom: 16
-}).addTo(map);
+map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
 
-let currentLayers = [];
-let lastPeriod = null;
-let customGeoJSON = null; // Holds user-loaded GeoJSON if present
+let currentYear = -1046;
+let isPlaying = false;
+let playbackTimer = null;
+let customSources = [];
+let layerVisibility = { main: true, periphery: true, external: true, routes: false, points: false };
 
-const colors = {
+const COLORS = {
   main: '#d4af37',
   periphery: '#7eb8da',
-  external: '#e05d5d'
+  external: '#e05d5d',
+  route: '#a78bfa'
 };
 
-function clearLayers() {
-  currentLayers.forEach(layer => map.removeLayer(layer));
-  currentLayers = [];
+function yearLabel(y) {
+  return y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`;
 }
 
-function styleForType(type) {
-  const color = colors[type] || '#888';
-  return {
-    color: color,
-    weight: type === 'main' ? 2.5 : 1.5,
-    fillColor: color,
-    fillOpacity: type === 'main' ? 0.5 : 0.35,
-    opacity: 0.9
-  };
+function getPeriod(year) {
+  return periods.find(p => year >= p.start && year <= p.end) || periods[periods.length - 1];
 }
 
-function addFeatureLayer(latlngs, name, type) {
-  const layer = L.polygon(latlngs, styleForType(type)).addTo(map);
-  if (name) {
-    layer.bindTooltip(name, {
-      permanent: false,
-      direction: 'center',
-      className: 'territory-tooltip'
+function updateUI(year) {
+  currentYear = year;
+  document.getElementById('year-display').textContent = yearLabel(year);
+  document.getElementById('timeline').value = year;
+  const p = getPeriod(year);
+  document.getElementById('period-name').textContent = p.name;
+  document.getElementById('period-years').textContent = p.years || '';
+}
+
+function clearCustomLayers() {
+  customSources.forEach(id => {
+    if (map.getLayer(id + '-fill')) map.removeLayer(id + '-fill');
+    if (map.getLayer(id + '-line')) map.removeLayer(id + '-line');
+    if (map.getSource(id)) map.removeSource(id);
+  });
+  customSources = [];
+}
+
+function addGeoJSONSource(id, data, type = 'main') {
+  if (map.getSource(id)) map.removeSource(id);
+  map.addSource(id, { type: 'geojson', data, generateId: true });
+  customSources.push(id);
+
+  const color = COLORS[type] || COLORS.main;
+  const isLine = data.features?.some(f => f.geometry?.type?.includes('Line'));
+
+  if (isLine) {
+    map.addLayer({
+      id: id + '-line',
+      type: 'line',
+      source: id,
+      paint: { 'line-color': color, 'line-width': 2, 'line-opacity': 0.8 },
+      layout: { visibility: layerVisibility.routes ? 'visible' : 'none' }
+    });
+  } else {
+    map.addLayer({
+      id: id + '-fill',
+      type: 'fill',
+      source: id,
+      paint: { 'fill-color': color, 'fill-opacity': type === 'main' ? 0.45 : 0.3 },
+      layout: { visibility: layerVisibility[type] ? 'visible' : 'none' }
+    });
+    map.addLayer({
+      id: id + '-line',
+      type: 'line',
+      source: id,
+      paint: { 'line-color': color, 'line-width': type === 'main' ? 1.5 : 1, 'line-opacity': 0.7 },
+      layout: { visibility: layerVisibility[type] ? 'visible' : 'none' }
     });
   }
-  currentLayers.push(layer);
-  return layer;
 }
 
-function drawSchematic(period) {
-  const order = ['external', 'periphery', 'main'];
-  order.forEach(type => {
-    (period.features || [])
-      .filter(f => f.type === type)
-      .forEach(feature => {
-        const latlngs = feature.coords.map(c => [c[1], c[0]]);
-        addFeatureLayer(latlngs, feature.name, feature.type);
-      });
+function drawSchematic(year) {
+  clearCustomLayers();
+  const period = getPeriod(year);
+  const features = { main: [], periphery: [], external: [] };
+
+  (period.features || []).forEach(f => {
+    const coords = f.coords.map(c => [c[0], c[1]]);
+    features[f.type]?.push({
+      type: 'Feature',
+      properties: { name: f.name, type: f.type },
+      geometry: { type: 'Polygon', coordinates: [coords] }
+    });
+  });
+
+  Object.entries(features).forEach(([type, feats]) => {
+    if (feats.length) {
+      addGeoJSONSource('schematic-' + type, { type: 'FeatureCollection', features: feats }, type);
+    }
   });
 }
 
-function drawCustomGeoJSON(year) {
-  if (!customGeoJSON || !customGeoJSON.features) return false;
-
-  const relevant = customGeoJSON.features.filter(f => {
-    const p = f.properties || {};
-    if (p.start !== undefined && p.end !== undefined) {
-      return year >= p.start && year <= p.end;
-    }
-    return true;
-  });
-
-  if (relevant.length === 0) return false;
-
-  relevant.forEach(feature => {
-    const p = feature.properties || {};
-    const name = p.name || p.NAME || p.title || 'Territory';
-    const type = p.type || p.TYPE || 'main';
-
-    if (feature.geometry.type === 'Polygon') {
-      const latlngs = feature.geometry.coordinates[0].map(c => [c[1], c[0]]);
-      addFeatureLayer(latlngs, name, type);
-    } else if (feature.geometry.type === 'MultiPolygon') {
-      feature.geometry.coordinates.forEach(poly => {
-        const latlngs = poly[0].map(c => [c[1], c[0]]);
-        addFeatureLayer(latlngs, name, type);
-      });
-    }
-  });
-
-  return true;
+function render(year) {
+  updateUI(year);
+  if (customSources.some(s => s.startsWith('custom-'))) return;
+  drawSchematic(year);
 }
 
-function updateMap(year) {
-  const period = periods.find(p => year >= p.start && year <= p.end) || periods[periods.length - 1];
-
-  document.getElementById('year-display').textContent = year < 0 ? `${Math.abs(year)} BCE` : `${year} CE`;
-  document.getElementById('dynasty-name').textContent = period.name;
-  document.getElementById('dynasty-years').textContent = period.years;
-  document.getElementById('dynasty-desc').textContent = period.desc;
-
-  if (period !== lastPeriod || customGeoJSON) {
-    clearLayers();
-
-    let usedCustom = false;
-    if (customGeoJSON) {
-      usedCustom = drawCustomGeoJSON(year);
-    }
-
-    if (!usedCustom) {
-      drawSchematic(period);
-    }
-
-    const mainLayer = currentLayers.find(l => l.options.fillColor === colors.main);
-    if (mainLayer) {
-      map.fitBounds(mainLayer.getBounds(), {
-        padding: [60, 60],
-        maxZoom: 5,
-        animate: true,
-        duration: 0.5
-      });
-    }
-
-    lastPeriod = period;
+function togglePlay() {
+  isPlaying = !isPlaying;
+  document.getElementById('play-btn').textContent = isPlaying ? '⏸' : '▶';
+  if (isPlaying) {
+    const speed = parseFloat(document.getElementById('playback-speed').value);
+    playbackTimer = setInterval(() => {
+      let next = currentYear + Math.round(speed);
+      if (next > 2000) next = -1600;
+      render(next);
+    }, 80);
+  } else {
+    clearInterval(playbackTimer);
   }
 }
 
-document.getElementById('geojson-file')?.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    try {
-      customGeoJSON = JSON.parse(ev.target.result);
-      lastPeriod = null;
-      updateMap(parseInt(document.getElementById('timeline').value));
-      document.getElementById('load-status').textContent = `Loaded: ${file.name}`;
-    } catch (err) {
-      alert('Invalid GeoJSON file');
-      console.error(err);
-    }
-  };
-  reader.readAsText(file);
+document.getElementById('timeline').addEventListener('input', e => {
+  if (isPlaying) togglePlay();
+  render(parseInt(e.target.value));
 });
 
-document.getElementById('clear-geojson')?.addEventListener('click', () => {
-  customGeoJSON = null;
-  lastPeriod = null;
+document.getElementById('play-btn').addEventListener('click', togglePlay);
+document.getElementById('reset-view').addEventListener('click', () => {
+  map.flyTo({ center: [105, 35], zoom: 4, duration: 800 });
+});
+
+['main', 'periphery', 'external', 'routes', 'points'].forEach(key => {
+  const el = document.getElementById('layer-' + key);
+  if (el) el.addEventListener('change', e => {
+    layerVisibility[key] = e.target.checked;
+  });
+});
+
+document.getElementById('geojson-file').addEventListener('change', async e => {
+  const files = Array.from(e.target.files);
+  let loaded = 0;
+  for (const file of files) {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const id = 'custom-' + Date.now() + '-' + loaded;
+      const type = data.features?.[0]?.properties?.type || 'main';
+      addGeoJSONSource(id, data, type);
+      loaded++;
+    } catch (err) {
+      console.error('Failed to load', file.name, err);
+    }
+  }
+  document.getElementById('load-status').textContent = loaded ? `Loaded ${loaded} file(s)` : 'No valid files';
+});
+
+document.getElementById('clear-data').addEventListener('click', () => {
+  clearCustomLayers();
   document.getElementById('load-status').textContent = '';
   document.getElementById('geojson-file').value = '';
-  updateMap(parseInt(document.getElementById('timeline').value));
+  render(currentYear);
 });
 
-const timeline = document.getElementById('timeline');
-updateMap(parseInt(timeline.value));
-
-timeline.addEventListener('input', (e) => {
-  updateMap(parseInt(e.target.value));
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  const results = document.getElementById('search-results');
+  if (!q) { results.innerHTML = ''; return; }
+  const matches = periods.filter(p => p.name.toLowerCase().includes(q) || (p.desc || '').toLowerCase().includes(q));
+  results.innerHTML = matches.slice(0, 6).map(p =>
+    `<div class="search-hit" data-year="${p.start}">${p.name} (${p.years || ''})</div>`
+  ).join('');
+  results.querySelectorAll('.search-hit').forEach(el => {
+    el.addEventListener('click', () => {
+      render(parseInt(el.dataset.year));
+      results.innerHTML = '';
+    });
+  });
 });
+
+map.on('click', e => {
+  const features = map.queryRenderedFeatures(e.point);
+  if (!features.length) return;
+  const f = features[0];
+  const name = f.properties?.name || f.properties?.NAME || 'Territory';
+  new maplibregl.Popup({ closeButton: false })
+    .setLngLat(e.lngLat)
+    .setHTML(`<strong>${name}</strong>`)
+    .addTo(map);
+});
+
+map.on('load', () => render(currentYear));
