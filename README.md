@@ -1,28 +1,29 @@
-# Interactive Historical Map of China
+# Historical Atlas — Interactive Map Platform
 
-A locally-hostable interactive map of Chinese dynasties from the Shang period to the end of the Qing, with surrounding nations.
-
-Inspired by and referencing the detail level of open-source projects such as [Jiangshan Map (江山时序)](https://github.com/DeanChensj/jiangshan-map) and [china-history-map](https://github.com/pessimistcamellia/china-history-map).
+High-performance, extensible map for historical borders, conquests, routes, and more.
 
 ## Features
-- Timeline slider (1600 BCE – 1912 CE)
-- Main Chinese empire in **gold**, other Chinese states in **light blue**, surrounding nations in **red**
-- Hover tooltips showing territory names
-- Dark theme
-- Non-overlapping schematic boundaries
+- **MapLibre GL JS** for smooth rendering and large datasets
+- Timeline playback with adjustable speed
+- Layer toggles (main / periphery / external / routes / points)
+- Multi-file GeoJSON loader (drop CHGIS or other data)
+- Search periods
+- Click popups
+- Dark theme, responsive sidebar
+- Built for future extensions: shipping lanes, conquest animation, multi-region focus
 
-## How to run locally
-1. Clone this repository.
-2. Open `index.html` in any modern browser.
-
-Or:
+## Run locally
 ```bash
+git clone https://github.com/Jokerz02/china-history-map.git
 cd china-history-map
 python -m http.server 8000
 ```
+Open http://localhost:8000
 
-## Notes
-- Borders are cleaned schematic approximations for educational visualization, informed by academic historical GIS (CHGIS / Hartwell) via the open-source reference projects.
-- For the highest accuracy and full features (cities, events, prefecture-level detail), use the original projects linked above.
+## Custom data
+Load GeoJSON files via the sidebar. Features with `type` property (`main`, `periphery`, `external`) get matching colors. Line geometries are treated as routes.
 
-This is a self-contained local version you can freely modify.
+## Stack
+- MapLibre GL JS 4.7
+- Vanilla JS (no build step)
+- Schematic fallback data in `data.js`
