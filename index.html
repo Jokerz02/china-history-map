@@ -3,55 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Interactive Historical Map of China</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <title>Historical Atlas · Interactive Map Platform</title>
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="app">
     <header>
-      <h1>China Through the Ages</h1>
-      <p>Interactive map of Chinese dynasties from the start of written history</p>
+      <div class="header-left">
+        <h1>Historical Atlas</h1>
+        <span class="subtitle">Interactive timeline · Conquests · Routes · Layers</span>
+      </div>
+      <div class="header-right">
+        <button id="play-btn" title="Play timeline">▶</button>
+        <button id="reset-view" title="Reset view">⌖</button>
+        <label class="speed-label">Speed
+          <input type="range" id="playback-speed" min="0.5" max="5" step="0.5" value="1">
+        </label>
+      </div>
     </header>
-
     <div id="map"></div>
-
-    <div id="controls">
-      <div id="timeline-container">
-        <label for="timeline">Year: <span id="year-display">-1046</span></label>
-        <input type="range" id="timeline" min="-1600" max="1912" value="-1046" step="1">
-        <div id="dynasty-labels">
-          <span>Shang</span>
-          <span>Zhou</span>
-          <span>Qin</span>
-          <span>Han</span>
-          <span>Tang</span>
-          <span>Song</span>
-          <span>Yuan</span>
-          <span>Ming</span>
-          <span>Qing</span>
+    <div id="sidebar">
+      <div class="panel">
+        <h3>Timeline</h3>
+        <div class="year-display" id="year-display">-1046 BCE</div>
+        <input type="range" id="timeline" min="-1600" max="2000" value="-1046" step="1">
+        <div class="period-info">
+          <strong id="period-name">Western Zhou</strong>
+          <span id="period-years"></span>
         </div>
       </div>
-      <div id="info-panel">
-        <h2 id="dynasty-name">Western Zhou</h2>
-        <p id="dynasty-years">c. 1046 – 771 BCE</p>
-        <p id="dynasty-desc">The Western Zhou period, capital at Haojing (near modern Xi'an). Feudal system with enfeoffed states.</p>
-        <p class="note"><strong>Note:</strong> Borders shown are schematic approximations. Drop in your own GeoJSON for higher accuracy.</p>
+      <div class="panel">
+        <h3>Layers</h3>
+        <label><input type="checkbox" id="layer-main" checked> Main empires</label>
+        <label><input type="checkbox" id="layer-periphery" checked> Other states</label>
+        <label><input type="checkbox" id="layer-external" checked> Surrounding nations</label>
+        <label><input type="checkbox" id="layer-routes"> Routes / shipping lanes</label>
+        <label><input type="checkbox" id="layer-points"> Points / cities</label>
+      </div>
+      <div class="panel">
+        <h3>Data</h3>
+        <label class="file-label">Load GeoJSON <input type="file" id="geojson-file" accept=".geojson,.json" multiple></label>
+        <button id="clear-data">Clear custom data</button>
+        <div id="load-status"></div>
+      </div>
+      <div class="panel">
+        <h3>Search</h3>
+        <input type="text" id="search" placeholder="Search place or period...">
+        <div id="search-results"></div>
       </div>
     </div>
-    <div id="data-loader">
-      <label>Load custom GeoJSON: <input type="file" id="geojson-file" accept=".geojson,.json"></label>
-      <button id="clear-geojson" type="button">Use built-in data</button>
-      <span id="load-status"></span>
-    </div>
     <div id="legend">
-      <div class="legend-item"><span class="swatch gold"></span> Main Chinese empire / dynasty</div>
-      <div class="legend-item"><span class="swatch blue"></span> Other Chinese states &amp; clans</div>
-      <div class="legend-item"><span class="swatch red"></span> Surrounding nations (Mongolia, Japan, Tibet, etc.)</div>
+      <div class="legend-item"><span class="swatch main"></span> Main empire</div>
+      <div class="legend-item"><span class="swatch periphery"></span> Other states</div>
+      <div class="legend-item"><span class="swatch external"></span> Surrounding</div>
+      <div class="legend-item"><span class="swatch route"></span> Routes</div>
     </div>
   </div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
